@@ -1,0 +1,84 @@
+module top(
+    input [1:0] data_in,
+    input up_down, reset, load, clk,
+    output [6:0] seg_one, seg_ten,
+    output [3:0] D0_AN, D1_AN);
+    
+    wire slow_clk;
+
+clock_divider #(12_000_000) divider_inst ( // assuming 12 MHz clock
+    .clk(clk),
+    .slow_clk(slow_clk));
+    
+wire [1:0] count;
+sync_counter counter_inst (
+    .data_in(data_in),
+    .up_down(up_down),
+    .reset(reset),
+    .load(load),
+    .clk(slow_clk),
+    .data_out(count));
+    
+seven_seg display_inst (
+    .data_out(count),
+    .seg_one(seg_one),
+    .seg_ten(seg_ten),
+    .D0_AN(D0_AN),
+    .D1_AN(D1_AN));
+endmodule
+
+module clock_divider #(parameter DIV = 100_000_0000)(
+    input clk,
+    output reg slow_clk = 0
+);
+    integer count = 0;
+
+    always @(posedge clk) begin
+        if (count >= (DIV / 2 - 1)) begin
+            count <= 0;
+            slow_clk <= ~slow_clk;
+        end else begin
+            count <= count + 1;
+        end
+    end
+endmodule
+
+module sync_counter(data_in,up_down,reset,data_out,load,clk);
+input [1:0] data_in ;
+input up_down, reset, load, clk ;
+output reg [1:0] data_out ;
+always@(posedge clk) begin
+    if (reset) 
+        data_out <= 2'b00;
+    else if (load)
+        data_out <= data_in;
+    else if (up_down)
+        data_out <= data_out + 1'b1;
+    else
+        data_out <= data_out - 1'b1;
+    end 
+endmodule            
+module seven_seg(data_out,seg_one,seg_ten,D0_AN,D1_AN);
+input [1:0] data_out ;
+output reg [6:0] seg_one , seg_ten ;
+output reg [3:0] D0_AN, D1_AN;
+
+always@(*) begin
+    D1_AN = 4'b1110;
+    case (data_out[0])
+    
+           1'b0 : seg_one = 7'b1000000;
+           1'b1 : seg_one = 7'b1111001;
+           default : seg_one = 7'b1111111;
+    endcase
+    end
+    
+always@(*) begin
+    D0_AN = 4'b1110;  
+    case (data_out[1])
+           1'b0 : seg_ten = 7'b1000000;
+           1'b1 : seg_ten = 7'b1111001;
+           default : seg_ten = 7'b1111111;
+    endcase
+end
+endmodule
